@@ -6,12 +6,12 @@ end
 
 function load_standard_packages(project="@mainpkgs")
     core_pkgs = ["BenchmarkTools", "Infiltrator", "Revise", "Cthulhu"]
-    current_project = Pkg.project().path
-    Pkg.activate(project; shared=true)
-    installed_deps = [dep.name for dep in values(Pkg.dependencies()) if dep.is_direct_dep]
-    pkgs = core_pkgs[[pkg ∉ installed_deps for pkg in core_pkgs]]
-    !isempty(pkgs) && Pkg.add(pkgs)
-    Pkg.activate(current_project)
+    # current_project = Pkg.project().path
+    # Pkg.activate(project; shared=true)
+    # installed_deps = [dep.name for dep in values(Pkg.dependencies()) if dep.is_direct_dep]
+    # pkgs = core_pkgs[[pkg ∉ installed_deps for pkg in core_pkgs]]
+    # !isempty(pkgs) && Pkg.add(pkgs)
+    # Pkg.activate(current_project)
     Pkg.REPLMode.pkgstr("stack $(project)")
     for pkg in core_pkgs
         Core.eval(Main, :(using $(Symbol(pkg))))
