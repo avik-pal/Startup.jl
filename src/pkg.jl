@@ -46,14 +46,30 @@ const UNSTACK_SPEC = Pkg.REPLMode.CommandSpec(; name="unstack",
     arg_count=0 => Inf)
 
 # Taken from https://github.com/JuliaLang/Pkg.jl/pull/3266
-function autocompat(ctx=Pkg.Types.Context(); io = nothing)
+function autocompat(ctx=Pkg.Types.Context(); io=nothing)
     io = something(io, ctx.io)
     updated_deps = String[]
-    for (dep, uuid) in ctx.env.project.deps
+    for dep_list in (ctx.env.project.deps, ctx.env.project.weakdeps,
+            ctx.env.project.extras), (dep, uuid) in dep_list
         compat_str = Pkg.Operations.get_compat_str(ctx.env.project, dep)
         isnothing(compat_str) || continue
-        v = ctx.env.manifest[uuid].version
-        v === nothing && (v = "<0.0.1, 1")
+        if uuid in ctx.env.manifest
+            v = ctx.env.manifest[uuid].version
+            v === nothing && (v = "<0.0.1, 1")
+        else
+            try
+                pkg_versions = Pkg.Versions.VersionSpec([
+                    Pkg.Operations.get_all_registered_versions(ctx, uuid)...,
+                ])
+                latest_version = Pkg.Operations.get_latest_compatible_version(ctx,
+                    uuid,
+                    pkg_versions)
+                v = latest_version
+            catch err
+                @error "Encountered Error $(err) while processing $(dep). Skipping."
+                continue
+            end
+        end
         Pkg.Operations.set_compat(ctx.env.project, dep, string(v)) ||
             Pkg.Types.pkgerror("invalid compat version specifier \"$(string(v))\"")
         push!(updated_deps, dep)
