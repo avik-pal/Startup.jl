@@ -45,6 +45,44 @@ const UNSTACK_SPEC = Pkg.REPLMode.CommandSpec(; name="unstack",
     should_splat=false,
     arg_count=0 => Inf)
 
+# Taken from https://github.com/JuliaLang/Pkg.jl/pull/3266
+function autocompat(ctx=Pkg.Types.Context(); io = nothing)
+    io = something(io, ctx.io)
+    updated_deps = String[]
+    for (dep, uuid) in ctx.env.project.deps
+        compat_str = Pkg.Operations.get_compat_str(ctx.env.project, dep)
+        isnothing(compat_str) || continue
+        v = ctx.env.manifest[uuid].version
+        v === nothing && (v = "<0.0.1, 1")
+        Pkg.Operations.set_compat(ctx.env.project, dep, string(v)) ||
+            Pkg.Types.pkgerror("invalid compat version specifier \"$(string(v))\"")
+        push!(updated_deps, dep)
+    end
+    if isempty(updated_deps)
+        Pkg.printpkgstyle(io, :Info, "no misssing compat entries found. No changes made.";
+            color=Base.info_color())
+    elseif length(updated_deps) == 1
+        Pkg.printpkgstyle(io, :Info,
+            "new entry set for $(only(updated_deps)) based on its current version";
+            color=Base.info_color())
+    else
+        Pkg.printpkgstyle(io, :Info,
+            "new entries set for $(join(updated_deps, ", ", " and ")) based on their current versions";
+            color=Base.info_color())
+    end
+    Pkg.Types.write_env(ctx.env)
+    return Pkg.Operations.print_compat(ctx; io)
+end
+
+const AUTOCOMPAT_SPEC = Pkg.REPLMode.CommandSpec(; name="autocompat",
+    api=autocompat,
+    help=md"""
+      autocompat
+  Set the compat entries for all packages in the current environment.
+  """,
+    description="Auto Compat Entries",
+    arg_count=0 => 0)
+
 function environments()
     envs = String[]
     for depot in Base.DEPOT_PATH
@@ -94,7 +132,8 @@ const ENVS_SPEC = Pkg.REPLMode.CommandSpec(; name="environments",
 const SPECS = Dict("stack" => STACK_SPEC,
     "unstack" => UNSTACK_SPEC,
     "environments" => ENVS_SPEC,
-    "envs" => ENVS_SPEC)
+    "envs" => ENVS_SPEC,
+    "autocompat" => AUTOCOMPAT_SPEC)
 
 function __init__()
     # add the commands to the repl

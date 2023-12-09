@@ -88,7 +88,7 @@ function repl_ast_transforms(repl)
             #     "@test_throws",
             #     "@test_warn",
             # ])
-            :Accessors => Symbol.(["@optic", "@set", "@modify"]),
+            :Accessors => Symbol.(["@optic", "@set", "@modify"])
             # :DataManipulation => Symbol.(["flatmap", "filtermap", "mapview", "group", "groupview", "groupmap", "findonly", "filteronly", "filterfirst", "uniqueonly"]),
             # :DataPipes => Symbol.(["@p"]),
             # :DictArrays => Symbol.(["DictArray"]),
