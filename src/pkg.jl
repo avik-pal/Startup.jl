@@ -61,10 +61,14 @@ function autocompat(ctx=Pkg.Types.Context(); io=nothing)
                 pkg_versions = Pkg.Versions.VersionSpec([
                     Pkg.Operations.get_all_registered_versions(ctx, uuid)...,
                 ])
-                latest_version = Pkg.Operations.get_latest_compatible_version(ctx,
-                    uuid,
-                    pkg_versions)
-                v = latest_version
+                if isempty(pkg_versions)
+                    @warn "No versions of $(dep) are registered. Possibly a Standard Library package."
+                    v = "<0.0.1, 1"
+                else
+                    latest_version = Pkg.Operations.get_latest_compatible_version(ctx,
+                        uuid, pkg_versions)
+                    v = latest_version
+                end
             catch err
                 @error "Encountered Error $(err) while processing $(dep). Skipping."
                 continue
