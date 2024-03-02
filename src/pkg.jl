@@ -14,16 +14,28 @@ function stack(envs)
     end
 end
 
-const STACK_SPEC = Pkg.REPLMode.CommandSpec(; name="stack",
-    api=stack,
-    help=md"""
-      stack envs...
-  Stack another environment.
-  """,
-    description="Stack another environment",
-    completions=Pkg.REPLMode.complete_activate,
-    should_splat=false,
-    arg_count=0 => Inf)
+@static if VERSION ≥ v"1.11-"
+    const STACK_SPEC = Pkg.REPLMode.CommandSpec(; name="stack",
+        api=stack,
+        help=md"""
+        stack envs...
+    Stack another environment.
+    """,
+        description="Stack another environment",
+        should_splat=false,
+        arg_count=0 => Inf)
+else
+    const STACK_SPEC = Pkg.REPLMode.CommandSpec(; name="stack",
+        api=stack,
+        help=md"""
+        stack envs...
+    Stack another environment.
+    """,
+        description="Stack another environment",
+        completions=Pkg.REPLMode.complete_activate,
+        should_splat=false,
+        arg_count=0 => Inf)
+end
 
 function unstack(envs)
     if isempty(envs)
@@ -59,7 +71,7 @@ function autocompat(ctx=Pkg.Types.Context(); io=nothing)
         else
             try
                 pkg_versions = Pkg.Versions.VersionSpec([
-                    Pkg.Operations.get_all_registered_versions(ctx, uuid)...,
+                    Pkg.Operations.get_all_registered_versions(ctx, uuid)...
                 ])
                 if isempty(pkg_versions)
                     @warn "No versions of $(dep) are registered. Possibly a Standard Library package."
