@@ -15,26 +15,20 @@ function stack(envs)
 end
 
 @static if VERSION ≥ v"1.11-"
-    const STACK_SPEC = Pkg.REPLMode.CommandSpec(; name="stack",
-        api=stack,
-        help=md"""
-        stack envs...
-    Stack another environment.
-    """,
-        description="Stack another environment",
-        should_splat=false,
-        arg_count=0 => Inf)
+    const STACK_SPEC = Pkg.REPLMode.CommandSpec(;
+        name="stack", api=stack, help=md"""
+                                 stack envs...
+                             Stack another environment.
+                             """,
+        description="Stack another environment", should_splat=false, arg_count=0 => Inf)
 else
-    const STACK_SPEC = Pkg.REPLMode.CommandSpec(; name="stack",
-        api=stack,
-        help=md"""
-        stack envs...
-    Stack another environment.
-    """,
+    const STACK_SPEC = Pkg.REPLMode.CommandSpec(;
+        name="stack", api=stack, help=md"""
+                                 stack envs...
+                             Stack another environment.
+                             """,
         description="Stack another environment",
-        completions=Pkg.REPLMode.complete_activate,
-        should_splat=false,
-        arg_count=0 => Inf)
+        completions=Pkg.REPLMode.complete_activate, should_splat=false, arg_count=0 => Inf)
 end
 
 function unstack(envs)
@@ -46,23 +40,22 @@ function unstack(envs)
     end
 end
 
-const UNSTACK_SPEC = Pkg.REPLMode.CommandSpec(; name="unstack",
-    api=unstack,
-    help=md"""
-      unstack envs...
-  Unstack a previously stacked environment.
-  """,
+const UNSTACK_SPEC = Pkg.REPLMode.CommandSpec(;
+    name="unstack", api=unstack, help=md"""
+                                   unstack envs...
+                               Unstack a previously stacked environment.
+                               """,
     description="Unstack an environment",
     completions=(_, partial, _, _) -> filter(p -> startswith(p, partial), LOAD_PATH),
-    should_splat=false,
-    arg_count=0 => Inf)
+    should_splat=false, arg_count=0 => Inf)
 
 # Taken from https://github.com/JuliaLang/Pkg.jl/pull/3266
 function autocompat(ctx=Pkg.Types.Context(); io=nothing)
     io = something(io, ctx.io)
     updated_deps = String[]
-    for dep_list in (ctx.env.project.deps, ctx.env.project.weakdeps,
-            ctx.env.project.extras), (dep, uuid) in dep_list
+    for dep_list in (ctx.env.project.deps, ctx.env.project.weakdeps, ctx.env.project.extras),
+        (dep, uuid) in dep_list
+
         compat_str = Pkg.Operations.get_compat_str(ctx.env.project, dep)
         isnothing(compat_str) || continue
         if uuid in ctx.env.manifest
@@ -70,15 +63,14 @@ function autocompat(ctx=Pkg.Types.Context(); io=nothing)
             v === nothing && (v = "<0.0.1, 1")
         else
             try
-                pkg_versions = Pkg.Versions.VersionSpec([
-                    Pkg.Operations.get_all_registered_versions(ctx, uuid)...
-                ])
+                pkg_versions = Pkg.Versions.VersionSpec([Pkg.Operations.get_all_registered_versions(
+                    ctx, uuid)...])
                 if isempty(pkg_versions)
                     @warn "No versions of $(dep) are registered. Possibly a Standard Library package."
                     v = "<0.0.1, 1"
                 else
-                    latest_version = Pkg.Operations.get_latest_compatible_version(ctx,
-                        uuid, pkg_versions)
+                    latest_version = Pkg.Operations.get_latest_compatible_version(
+                        ctx, uuid, pkg_versions)
                     v = latest_version
                 end
             catch err
@@ -98,7 +90,8 @@ function autocompat(ctx=Pkg.Types.Context(); io=nothing)
             "new entry set for $(only(updated_deps)) based on its current version";
             color=Base.info_color())
     else
-        Pkg.printpkgstyle(io, :Info,
+        Pkg.printpkgstyle(io,
+            :Info,
             "new entries set for $(join(updated_deps, ", ", " and ")) based on their current versions";
             color=Base.info_color())
     end
@@ -106,14 +99,12 @@ function autocompat(ctx=Pkg.Types.Context(); io=nothing)
     return Pkg.Operations.print_compat(ctx; io)
 end
 
-const AUTOCOMPAT_SPEC = Pkg.REPLMode.CommandSpec(; name="autocompat",
-    api=autocompat,
+const AUTOCOMPAT_SPEC = Pkg.REPLMode.CommandSpec(; name="autocompat", api=autocompat,
     help=md"""
       autocompat
   Set the compat entries for all packages in the current environment.
   """,
-    description="Auto Compat Entries",
-    arg_count=0 => 0)
+    description="Auto Compat Entries", arg_count=0 => 0)
 
 function environments()
     envs = String[]
@@ -151,34 +142,59 @@ function environments()
     end
 end
 
-const ENVS_SPEC = Pkg.REPLMode.CommandSpec(; name="environments",
-    short_name="envs",
-    api=environments,
-    help=md"""
-      environments|envs
-  List all known named environments.
-  """,
-    description="List all known named environments",
-    arg_count=0 => 0)
+const ENVS_SPEC = Pkg.REPLMode.CommandSpec(; name="environments", short_name="envs",
+    api=environments, help=md"""
+                        environments|envs
+                    List all known named environments.
+                    """,
+    description="List all known named environments", arg_count=0 => 0)
 
-const SPECS = Dict("stack" => STACK_SPEC,
-    "unstack" => UNSTACK_SPEC,
-    "environments" => ENVS_SPEC,
-    "envs" => ENVS_SPEC,
-    "autocompat" => AUTOCOMPAT_SPEC)
+function addtestdep(pkgs...; io=nothing)
+    ctx = Pkg.Types.Context()
+    io = something(io, ctx.io)
+
+    tmp = mktempdir()
+    tmp_ctx = Pkg.Types.Context(; env=Pkg.Types.EnvCache(tmp))
+    length(pkgs) == 1 ? ([pkgs]) : (pkgs = [pkgs...])
+    specs = Pkg.Types.PackageSpec.(pkgs)
+    Pkg.add(tmp_ctx, specs; io=io)
+
+    if !haskey(ctx.env.project.targets, "test")
+        ctx.env.project.targets["test"] = []
+    end
+
+    for (dep, uuid) in tmp_ctx.env.project.deps
+        ctx.env.project.extras[dep] = uuid
+        if dep ∉ ctx.env.project.targets["test"]
+            push!(ctx.env.project.targets["test"], dep)
+        end
+    end
+
+    sort!(ctx.env.project.targets["test"])
+
+    Pkg.Types.write_env(ctx.env)
+    return
+end
+
+const ADDTESTDEP_SPEC = Pkg.REPLMode.CommandSpec(; name="addtestdep", api=addtestdep,
+    help=md"""
+      addtestdep pkgs...
+  Add packages to the test target.
+  """,
+    description="Add packages to the test target", arg_count=1 => Inf)
+
+const SPECS = Dict(
+    "stack" => STACK_SPEC, "unstack" => UNSTACK_SPEC, "environments" => ENVS_SPEC,
+    "envs" => ENVS_SPEC, "autocompat" => AUTOCOMPAT_SPEC,
+    "addtestdep" => ADDTESTDEP_SPEC)
 
 function __init__()
     # add the commands to the repl
     activate = Pkg.REPLMode.SPECS["package"]["activate"]
-    activate_modified = Pkg.REPLMode.CommandSpec(activate.canonical_name,
-        "a", # Modified entry, short name
-        activate.api,
-        activate.should_splat,
-        activate.argument_spec,
-        activate.option_specs,
-        activate.completions,
-        activate.description,
-        activate.help)
+    activate_modified = Pkg.REPLMode.CommandSpec(activate.canonical_name, "a", # Modified entry, short name
+        activate.api, activate.should_splat,
+        activate.argument_spec, activate.option_specs,
+        activate.completions, activate.description, activate.help)
     SPECS["activate"] = activate_modified
     SPECS["a"] = activate_modified
     Pkg.REPLMode.SPECS["package"] = merge(Pkg.REPLMode.SPECS["package"], SPECS)
